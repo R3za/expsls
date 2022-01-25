@@ -61,22 +61,26 @@ def huber_loss(w, X, y, delta=1):
     return torch.mean(torch.where(diff <= delta, 0.5 * diff**2, delta * diff - 0.5 * delta**2))
 
 def squared_loss(w, X, y):
-    n,d = X.shape
+    # n,d = X.shape
     '''Squared Loss'''
-    return torch.mean(( y - torch.matmul(X, w) )**2)
+    return 1./2*torch.mean(( y - torch.matmul(X, w) )**2)
 
 
 
-def param_l(X):
-    Ldiag=np.sum(X**2,axis=1)
-    # Lmean = np.mean(Ldiag)
-    Lmax = np.amax(Ldiag)
-    # Lmin = np.amin(Ldiag)
-    # print("avrg Lmin for each fi: %64f"%(np.amin(Ldiag)))
-    # Lmin=np.amin(Ldiag)
-    # Lmin = max(0,np.amin(sc.linalg.eigh(np.dot(X.T,X),eigvals_only=True)))
+def param_l(X,n=1):
 
-    return Lmax
+    '''Lmin and Lmax in stochastic case'''
+    print(X.shape)
+    if n==1:
+        Ldiag=np.sum(X**2,axis=1)
+        print(np.amax(Ldiag),np.amin(Ldiag))
+        return np.amax(Ldiag),np.amin(Ldiag)
+
+    '''Lmin and Lmax in deterministic case case'''
+    eigvals=sc.linalg.svdvals(np.matmul(X.T,X))
+    Lmax,Lmin=1./n * np.amax(eigvals), 1./n * np.amin(eigvals)
+    print("Lmax: %f,Lmin:%f,kappa:%f"%(Lmax,Lmin,Lmax/Lmin))
+    return Lmax,Lmin
 
 
 def accuracy(w, X, y):
