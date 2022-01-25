@@ -74,7 +74,7 @@ def RIT_SGD(score_list, closure, D, labels, batch_size=1, max_epoch=100,
     score_list += [score_dict]
 
 
-
+    t=0
     for k in range(max_epoch):
         t_start = time.time()
 
@@ -88,7 +88,7 @@ def RIT_SGD(score_list, closure, D, labels, batch_size=1, max_epoch=100,
         # Create Minibatches:
         minibatches = make_minibatches(n, m, batch_size)
         for i in range(m):
-            t = i + k * n
+            t +=1
             # get the minibatch for this iteration
             indices = minibatches[i]
             Di, labels_i = D[indices, :], labels[indices]
@@ -102,19 +102,25 @@ def RIT_SGD(score_list, closure, D, labels, batch_size=1, max_epoch=100,
 
 
 
-            if (t + 1) % log_idx == 0:
+            if (num_grad_evals) % log_idx == 0 or (num_grad_evals) % n== 0:
+                t_end=time.time()
                 loss, full_grad = closure(x, D, labels)
 
                 if verbose:
                     output = 'Epoch.: %d, Grad. norm: %.2e' % \
-                             ((t + 1) / log_idx, np.linalg.norm(full_grad))
+                             (int(t*batch_size/n), np.linalg .norm(full_grad))
                     output += ', Func. value: %e' % loss
                     output += ', Num gradient evaluations/n: %f' % (num_grad_evals / log_idx)
                     print(output)
 
-                score_dict = {"itr": (t + 1) / log_idx}
+                score_dict = {"itr": (t + 1)}
+                score_dict["time"]=t_end-t_start
+
                 score_dict["n_grad_evals"] = num_grad_evals
-                score_dict["n_grad_evals_normalized"] = num_grad_evals / log_idx
+                if batch_size==n:
+                    score_dict["n_grad_evals_normalized"] = num_grad_evals / n
+                else :
+                    score_dict["n_grad_evals_normalized"] = num_grad_evals / log_idx
                 score_dict["train_loss"] = loss
                 score_dict["grad_norm"] = np.linalg.norm(full_grad)
                 score_dict["train_accuracy"] = accuracy(x, D, labels)
@@ -129,9 +135,8 @@ def RIT_SGD(score_list, closure, D, labels, batch_size=1, max_epoch=100,
                     break
                 if np.isnan(full_grad).any():
                     break
-
-        t_end = time.time()
-        time_epoch = t_end - t_start
-        score_list[len(score_list) - 1]["time"] = time_epoch
+                t_start = time.time()
+        # time_epoch = t_end - t_start
+        # score_list[len(score_list) - 1]["time"] = time_epoch
 
     return score_list
