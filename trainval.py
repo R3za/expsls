@@ -7,6 +7,7 @@ from utils import *
 from optimizers.exp_step_sgd import *
 from optimizers.exp_step_acc_sgd import *
 from optimizers.rit_sgd import *
+from optimizers.masg import *
 
 
 import argparse
@@ -19,7 +20,7 @@ import math
 import itertools
 import os, sys
 import pylab as plt
-import exp_configs
+import exp_configs_fullbatch
 import time
 import numpy as np
 import shutil
@@ -107,23 +108,39 @@ def trainval(exp_dict, savedir_base, reset=False):
 										 is_subsample=is_subsample, is_kernelize=is_kernelize, standardize=standardize,
 										 remove_strong_convexity=remove_strong_convexity)
 		n = X.shape[0]
-	if exp_dict["dataset"] in Lparam.keys():
-		Lmax=Lparam[exp_dict["dataset"]]
+
+	if exp_dict["batch_size"]==-1:
+		exp_dict["batch_size"]=n
+	rb=int(exp_dict["batch_size"]/n)
+	if (exp_dict["dataset"],rb) in Lparam.keys():
+		Lmax,Lmin=Lparam[(exp_dict["dataset"],rb)]
 	else:
-		Lmax=param_l(X)
-		Lparam[exp_dict["dataset"]]=Lmax
+		if rb==1:
+			Lmax,Lmin=param_l(X,exp_dict["batch_size"])
+		else :
+			# if exp_dict["dataset"]=="rcv1":
+			# 	Lmax,Lmin=0,100000
+			# 	for i in range(80):
+			# 		Lmaxt, Lmint = param_l(X[i*200:(i+1)*200])
+			# 		Lmax,Lmin=max(Lmax,Lmaxt),min(Lmin,Lmint)
+			# else :
+				Lmax, Lmin = param_l(X)
+		Lparam[(exp_dict["dataset"],rb)]=(Lmax,Lmin)
 
 	#set 1/n as reg factor for all exp
 	# exp_dict["regularization_factor"]= 0.01 #1./n
 	regularization_factor = exp_dict["regularization_factor"]
 	if exp_dict["loss_func"] == "logistic_loss":
 		closure = make_closure(logistic_loss, regularization_factor)
-		Lmax, Lmin = 1./4*Lmax+regularization_factor,regularization_factor
-	elif exp_dict["loss_func"] == "squared_hinge_loss":
-		closure = make_closure(squared_hinge_loss, regularization_factor)
+		Lmax, Lmin = 1./4*Lmax+regularization_factor,1./4*Lmin+regularization_factor
+		print('Kappa for logistic:%f'%(Lmax/Lmin))
 	elif exp_dict["loss_func"] == "squared_loss":
 		closure = make_closure(squared_loss, regularization_factor)
-		Lmax, Lmin = Lmax+regularization_factor,regularization_factor
+		Lmax, Lmin = Lmax + regularization_factor, Lmin + regularization_factor
+		print('Kappa for logistic:%f' % (Lmax / Lmin))
+
+	elif exp_dict["loss_func"] == "squared_hinge_loss":
+		closure = make_closure(squared_hinge_loss, regularization_factor)
 	elif exp_dict["loss_func"] == "huber_loss":
 		closure = make_closure(huber_loss, regularization_factor)
 	else:
@@ -160,6 +177,17 @@ def trainval(exp_dict, savedir_base, reset=False):
 						 rho=opt_dict["rho"],
 						 mu=Lmin,
 						 alpha_t=opt_dict['alpha_t'],
+						 D_test=X_test, labels_test=y_test)
+	# M_ASG(score_list, closure, D, labels, batch_size=1, max_epoch=100,
+	# 	  x0=None, mu=0.1, L=0.1, p=1, verbose=True, D_test=None, labels_test=None, log_idx=1000)
+	elif opt_dict["name"] == "M_ASG":
+		score_list = M_ASG(score_list, closure=closure, batch_size=exp_dict["batch_size"],
+						 max_epoch=exp_dict["max_epoch"],
+						 D=X, labels=y,
+						 L=Lmax,
+						 p=opt_dict["p"],
+						 c=opt_dict["c"],
+						 mu=Lmin,
 						 D_test=X_test, labels_test=y_test)
 
 	# def RIT_SGD(score_list, closure, D, labels, batch_size=1, max_epoch=100,
