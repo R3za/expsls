@@ -14,10 +14,7 @@ with the placeholders defined as follows.
 
 Defines the dataset and regularization constant for the experiments
 
-- `a1a`, `a2a`, `w8a`, `mushrooms`, `ijcnn`, `phishing`, `rcv1` for the experiments comparing AdaSVRG to classical methods (including SVRG).
-
-
-- `synthetic_interpolation` for the interpolation experiments.
+- `mushrooms`, `ijcnn`, `rcv1` 
 
 **{SAVEDIR_BASE}**
 
